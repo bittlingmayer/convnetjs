@@ -172,7 +172,7 @@
         $("#data-te").val(t);
         $("#datamsgtest").empty();
       }
-
+      $("#datamsg").empty(); // flush
       $("#prepromsg").empty(); // flush
       SUCC("#prepromsg", "Sent " + arr_test.length + " data to test, keeping " + arr_train.length + " for train.");
       var onSuccess = function (msg) { SUCC('#datamsg', msg)};
@@ -187,6 +187,7 @@
     function importTestData() {
       var csv_txt = $('#data-te').val();
       var arr = $.csv.toArrays(csv_txt);
+      $("#datamsgtest").empty(); // flush
       var onSuccess = function (msg) { SUCC('#datamsgtest', msg)};
       var onFailure = function (msg) { FAIL('#datamsgtest', msg)};
       var import_test_data = importData(arr, onSuccess, onFailure);
