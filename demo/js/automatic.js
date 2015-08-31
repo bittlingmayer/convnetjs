@@ -191,9 +191,6 @@
       var onSuccess = function (msg) { SUCC('#datamsgtest', msg)};
       var onFailure = function (msg) { FAIL('#datamsgtest', msg)};
       var import_test_data = importData(arr, onSuccess, onFailure);
-      // note important that we use colstats of train data!
-      console.log("import_test_data.arr: " + import_test_data.arr);
-      console.log("import_test_data.arr[0]: " + import_test_data.arr[0]);
       test_dataset = makeDataset(labelix, import_train_data, import_test_data);
       return test_dataset;
     }

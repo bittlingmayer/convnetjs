@@ -1,6 +1,5 @@
  (function(global) {
   "use strict";
-     
     var arrUnique = global.arrUnique;
 
     // looks at a column i of data and guesses what's in it
@@ -72,16 +71,13 @@
   function makeDataset(labelix, import_train_data, opt_import_test_data) {
 
     var arr = opt_import_test_data ? opt_import_test_data.arr : import_train_data.arr;
-    if (opt_import_test_data) { console.log("Make dataset of test data."); }
-    var colstats = import_train_data.colstats;
     var N = opt_import_test_data? opt_import_test_data.N : import_train_data.N;
+    var colstats = import_train_data.colstats; // Note: we use colstats of train data even for test!
     var D = import_train_data.D;
-    console.log("N : " + N);
-    console.log("D : " + D);
+
     var data = [];
     var labels = [];
     for(var i=0;i<N;i++) {
-      console.log("i: " + i);
       var arri = arr[i];
       
       // create the input datapoint Vol()
