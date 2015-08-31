@@ -1,21 +1,8 @@
- 
-    // utility functions
-    Array.prototype.contains = function(v) {
-    for(var i = 0; i < this.length; i++) {
-      if(this[i] === v) return true;
-    }
-    return false;
-    };
-    Array.prototype.unique = function() {
-      var arr = [];
-      for(var i = 0; i < this.length; i++) {
-        if(!arr.contains(this[i])) {
-          arr.push(this[i]);
-        }
-      }
-      return arr; 
-    }
-    
+    var randperm = convnetjs.randperm;
+    var importData = convnetjs.importData;
+    var importData = convnetjs.importData;
+    var makeDataset = convnetjs.makeDataset;
+
     function FAIL(outdivid, msg) {
       $(outdivid).prepend("<div class=\"msg\" style=\"background-color:#FCC;\">"+msg+"</div>")
     }
@@ -23,110 +10,6 @@
       $(outdivid).prepend("<div class=\"msg\" style=\"background-color:#CFC;\">"+msg+"</div>")
     }
 
-    // looks at a column i of data and guesses what's in it
-    // returns results of analysis: is column numeric? How many unique entries and what are they?
-    function guessColumn(data, c) {
-      var numeric = true;
-      var vs = [];
-      for(var i=0,n=data.length;i<n;i++) {
-        var v = data[i][c];
-        vs.push(v);
-        if(isNaN(v)) numeric = false;
-      }
-      var u = vs.unique();
-      if(!numeric) {
-        // if we have a non-numeric we will map it through uniques to an index
-        return {numeric:numeric, num:u.length, uniques:u};
-      } else {
-        return {numeric:numeric, num:u.length};
-      }
-    }
-    
-    // returns arr (csv parse)
-    // and colstats, which contains statistics about the columns of the input
-    // parsing results will be appended to a div with id outdivid
-    function importData(arr, outdivid) {
-      $(outdivid).empty(); // flush messages
-
-      // find number of datapoints
-      N = arr.length;
-      var t = [];
-      SUCC(outdivid, "found " + N + " data points");
-      if(N === 0) { FAIL(outdivid, 'no data points found?'); return; }
-      
-      // find dimensionality and enforce consistency
-      D = arr[0].length;
-      for(var i=0;i<N;i++) {
-        var d = arr[i].length;
-        if(d !== D) { FAIL(outdivid, 'data dimension not constant: line ' + i + ' has ' + d + ' entries.'); return; }
-      }
-      SUCC(outdivid, "data dimensionality is " + (D-1));
-      
-      // go through columns of data and figure out what they are
-      var colstats = [];
-      for(var i=0;i<D;i++) {
-        var res = guessColumn(arr, i);
-        colstats.push(res);
-        if(D > 20 && i>3 && i < D-3) {
-          if(i==4) {
-            SUCC(outdivid, "..."); // suppress output for too many columns
-          }
-        } else {
-          SUCC(outdivid, "column " + i + " looks " + (res.numeric ? "numeric" : "NOT numeric") + " and has " + res.num + " unique elements");
-        }
-      }
-
-      return {arr: arr, colstats: colstats};
-   }
-    
-  // process input mess into vols and labels
-  function makeDataset(arr, colstats) {
-
-    var labelix = parseInt($("#labelix").val());
-    if(labelix < 0) labelix = D + labelix; // -1 should turn to D-1
-
-    var data = [];
-    var labels = [];
-    for(var i=0;i<N;i++) {
-      var arri = arr[i];
-      
-      // create the input datapoint Vol()
-      var p = arri.slice(0, D-1);
-      var xarr = [];
-      for(var j=0;j<D;j++) {
-        if(j===labelix) continue; // skip!
-
-        if(colstats[j].numeric) {
-          xarr.push(parseFloat(arri[j]));
-        } else {
-          var u = colstats[j].uniques;
-          var ix = u.indexOf(arri[j]); // turn into 1ofk encoding
-          for(var q=0;q<u.length;q++) {
-            if(q === ix) { xarr.push(1.0); }
-            else { xarr.push(0.0); }
-          }
-        }
-      }
-      var x = new convnetjs.Vol(xarr);
-      
-      // process the label (last column)
-      if(colstats[labelix].numeric) {
-        var L = parseFloat(arri[labelix]); // regression
-      } else {
-        var L = colstats[labelix].uniques.indexOf(arri[labelix]); // classification
-        if(L==-1) {
-          console.log('whoa label not found! CRITICAL ERROR, very fishy.');
-        }
-      }
-      data.push(x);
-      labels.push(L);
-    }
-    
-    var dataset = {};
-    dataset.data = data;
-    dataset.labels = labels;
-    return dataset;
-  }
 
   // optionally provide a magic net
   function testEval(optional_net) {
@@ -260,24 +143,8 @@
         $('#bestmodeloverall').html(t);
       }
     }
-    
-    // TODO: MOVE TO CONVNETJS UTILS
-    var randperm = function(n) {
-      var i = n,
-          j = 0,
-          temp;
-      var array = [];
-      for(var q=0;q<n;q++)array[q]=q;
-      while (i--) {
-          j = Math.floor(Math.random() * (i+1));
-          temp = array[i];
-          array[i] = array[j];
-          array[j] = temp;
-      }
-      return array;
-    }
 
-    var train_dataset, train_import_data; // globals
+    var import_train_data, labelix, train_dataset; // globals
     function importTrainData() {
       var csv_txt = $('#data-ta').val();
       var arr = $.csv.toArrays(csv_txt);
@@ -308,17 +175,25 @@
 
       $("#prepromsg").empty(); // flush
       SUCC("#prepromsg", "Sent " + arr_test.length + " data to test, keeping " + arr_train.length + " for train.");
-      train_import_data = importData(arr_train,'#datamsg');
-      train_dataset = makeDataset(train_import_data.arr, train_import_data.colstats);
+      var onSuccess = function (msg) { SUCC('#datamsg', msg)};
+      var onFailure = function (msg) { FAIL('#datamsg', msg)};
+      import_train_data = importData(arr_train, onSuccess, onFailure);
+      labelix = parseInt($("#labelix").val());
+      if(labelix < 0) labelix = import_train_data.D + labelix; // eg -1 should turn to D-1        
+      train_dataset = makeDataset(labelix, import_train_data);
       return train_dataset;
     }
 
     function importTestData() {
       var csv_txt = $('#data-te').val();
       var arr = $.csv.toArrays(csv_txt);
-      var import_data = importData(arr,'#datamsgtest');
+      var onSuccess = function (msg) { SUCC('#datamsgtest', msg)};
+      var onFailure = function (msg) { FAIL('#datamsgtest', msg)};
+      var import_test_data = importData(arr, onSuccess, onFailure);
       // note important that we use colstats of train data!
-      test_dataset = makeDataset(import_data.arr, train_import_data.colstats);
+      console.log("import_test_data.arr: " + import_test_data.arr);
+      console.log("import_test_data.arr[0]: " + import_test_data.arr[0]);
+      test_dataset = makeDataset(labelix, import_train_data, import_test_data);
       return test_dataset;
     }
 
